@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mapa Mental QA Web</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg:   #060810;
+  --card: #0b0f1a;
+  --qa:   #38bdf8;
+  --qc:   #a78bfa;
+  --cost: #fb923c;
+  --met:  #34d399;
+  --gov:  #f472b6;
+  --txt:  #dde4f0;
+  --sub:  #4a5568;
+  --bdr:  #151f30;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--txt); font-family:'Space Grotesk',sans-serif; min-height:100vh; overflow-x:hidden; }
+
+.bg-canvas { position:fixed; inset:0; pointer-events:none; z-index:0; overflow:hidden; }
+.bg-canvas svg { width:100%; height:100%; }
+
+.hdr { position:relative; z-index:2; text-align:center; padding:36px 20px 40px; }
+.hdr-pill { display:inline-flex; align-items:center; gap:7px; background:#0b0f1a; border:1px solid var(--bdr); border-radius:100px; padding:5px 16px; font-size:9.5px; color:var(--sub); letter-spacing:.1em; font-family:'DM Mono',monospace; margin-bottom:14px; }
+.hdr-pill-dot { width:6px; height:6px; border-radius:50%; background:var(--qa); animation:pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+.hdr h1 { font-size:clamp(22px,3.5vw,32px); font-weight:700; line-height:1.2; }
+.hdr p  { font-size:11px; color:var(--sub); margin-top:7px; font-family:'DM Mono',monospace; }
+
+.map-outer { position:relative; z-index:2; width:100%; overflow-x:auto; padding-bottom:60px; }
+.map-canvas { position:relative; width:2600px; height:2400px; margin:0 auto; }
+.map-svg { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:1; }
+
+.core {
+  position:absolute;
+  width:150px; height:150px; border-radius:50%;
+  background:var(--card); border:2px solid var(--qa);
+  box-shadow:0 0 60px #38bdf830, inset 0 0 30px #38bdf80a;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  z-index:10; text-align:center; overflow:hidden; transform:translate(-50%,-50%);
+}
+.core-illus { position:absolute; inset:0; opacity:.18; }
+.core-content { position:relative; z-index:2; display:flex; flex-direction:column; align-items:center; gap:5px; }
+.core-icon { width:34px; height:34px; }
+.core-lbl  { font-size:12px; font-weight:700; line-height:1.25; }
+
+.node {
+  position:absolute; z-index:5; transform:translate(-50%,-50%);
+  border-radius:13px; overflow:hidden;
+  background:var(--card); border:1px solid var(--bdr);
+  transition:transform .2s, box-shadow .2s;
+}
+.node:hover { transform:translate(-50%,-50%) translateY(-3px); box-shadow:0 14px 38px #00000070; }
+.node-main { width:280px; }
+.node-sub  { width:215px; }
+
+.n-photos { display:flex; height:80px; gap:2px; }
+.n-photo  { flex:1; overflow:hidden; position:relative; }
+.n-photo img { width:100%; height:100%; object-fit:cover; display:block; }
+.n-photo::after { content:''; position:absolute; inset:0; background:linear-gradient(180deg,transparent 30%,#07101eee); }
+
+.n-photo-single { height:70px; overflow:hidden; position:relative; }
+.n-photo-single img { width:100%; height:100%; object-fit:cover; display:block; }
+
+.n-title { display:flex; align-items:center; gap:8px; padding:8px 11px 6px; border-bottom:1px solid var(--bdr); }
+.n-ico { width:28px; height:28px; border-radius:7px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.n-ico svg { width:13px; height:13px; }
+.n-label { font-size:10.5px; font-weight:700; line-height:1.2; }
+.n-sub   { font-size:7.5px; color:var(--sub); margin-top:1px; }
+.n-badge { font-family:'DM Mono',monospace; font-size:6.5px; letter-spacing:.08em; padding:1px 5px; border-radius:3px; margin-left:auto; flex-shrink:0; white-space:nowrap; }
+.n-sec { font-size:7px; font-family:'DM Mono',monospace; letter-spacing:.1em; padding:5px 10px 2px; opacity:.45; text-transform:uppercase; }
+
+.chips { display:flex; flex-wrap:wrap; gap:3px; padding:2px 9px 8px; }
+.chip { font-size:8px; font-family:'DM Mono',monospace; padding:2px 6px; border-radius:20px; border:1px solid; line-height:1.2; white-space:nowrap; }
+.divider { height:1px; background:var(--bdr); margin:0 9px 3px; }
+
+.qa .n-title  { border-top:2px solid var(--qa); } .qa .n-label { color:var(--qa); } .qa .n-sec { color:var(--qa); }
+.qa .n-photo-single::after { background:linear-gradient(160deg,#0c2035dd,#071525aa); }
+.qa .chip { border-color:#38bdf828; color:#7dd8f8; background:#38bdf806; }
+.qa .chip-hi { background:#38bdf815; border-color:#38bdf858; color:var(--qa); font-weight:600; }
+
+.qc .n-title  { border-top:2px solid var(--qc); } .qc .n-label { color:var(--qc); } .qc .n-sec { color:var(--qc); }
+.qc .n-photo-single::after { background:linear-gradient(160deg,#160e30dd,#0d0820aa); }
+.qc .chip { border-color:#a78bfa28; color:#c4aafc; background:#a78bfa06; }
+.qc .chip-hi { background:#a78bfa15; border-color:#a78bfa58; color:var(--qc); font-weight:600; }
+
+.cost .n-title { border-top:2px solid var(--cost); } .cost .n-label { color:var(--cost); } .cost .n-sec { color:var(--cost); }
+.cost .n-photo-single::after { background:linear-gradient(160deg,#1a0a00dd,#0d0700aa); }
+.cost .chip { border-color:#fb923c28; color:#fdba7c; background:#fb923c06; }
+.cost .chip-hi { background:#fb923c15; border-color:#fb923c58; color:var(--cost); font-weight:600; }
+
+.met .n-title  { border-top:2px solid var(--met); } .met .n-label { color:var(--met); } .met .n-sec { color:var(--met); }
+.met .n-photo-single::after { background:linear-gradient(160deg,#021a0edd,#011008aa); }
+.met .chip { border-color:#34d39928; color:#6ee7b7; background:#34d39906; }
+.met .chip-hi { background:#34d39915; border-color:#34d39958; color:var(--met); font-weight:600; }
+
+.gov .n-title  { border-top:2px solid var(--gov); } .gov .n-label { color:var(--gov); } .gov .n-sec { color:var(--gov); }
+.gov .n-photo-single::after { background:linear-gradient(160deg,#200615dd,#10030caa); }
+.gov .chip { border-color:#f472b628; color:#f9a8d4; background:#f472b606; }
+.gov .chip-hi { background:#f472b615; border-color:#f472b658; color:var(--gov); font-weight:600; }
+
+.banner-wrap { position:relative; z-index:2; max-width:900px; margin:0 auto; padding:0 20px 20px; }
+.banner { background:#06120e; border:1px solid #173324; border-radius:13px; padding:13px 18px; display:flex; align-items:flex-start; gap:12px; }
+.banner svg { width:20px; height:20px; flex-shrink:0; margin-top:1px; }
+.banner-txt { font-size:11.5px; color:#86efac; line-height:1.65; }
+.banner-txt strong { color:#4ade80; }
+
+.legend { position:relative; z-index:2; display:flex; flex-wrap:wrap; justify-content:center; gap:14px; max-width:900px; margin:0 auto; padding:16px 20px 40px; border-top:1px solid var(--bdr); }
+.li { display:flex; align-items:center; gap:6px; font-size:10px; color:var(--sub); }
+.ld { width:9px; height:9px; border-radius:50%; }
+
+@media(max-width:700px){
+  .map-canvas { width:100%; height:auto; display:flex; flex-direction:column; align-items:center; gap:12px; padding:12px; }
+  .map-svg { display:none; }
+  .node,.core { position:static !important; transform:none !important; width:100% !important; max-width:420px; }
+  .core { border-radius:14px; height:90px; }
+}
+</style>
+</head>
+<body>
+
+<div class="bg-canvas">
+  <svg viewBox="0 0 1400 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <radialGradient id="bgGlow" cx="50%" cy="50%" r="55%">
+        <stop offset="0%" stop-color="#0d2040" stop-opacity="0.55"/>
+        <stop offset="100%" stop-color="#060810" stop-opacity="0"/>
+      </radialGradient>
+      <pattern id="grid" x="0" y="0" width="80" height="80" patternUnits="userSpaceOnUse">
+        <path d="M80 0 L0 0 0 80" fill="none" stroke="#0e1f35" stroke-width="0.5"/>
+      </pattern>
+      <pattern id="dots" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+        <circle cx="1" cy="1" r="0.9" fill="#1a2840" opacity="0.7"/>
+      </pattern>
+    </defs>
+    <rect width="1400" height="900" fill="url(#grid)"/>
+    <rect width="1400" height="900" fill="url(#dots)"/>
+    <rect width="1400" height="900" fill="url(#bgGlow)"/>
+    <g fill="white">
+      <circle cx="120" cy="80" r="1.2" opacity="0.5"/><circle cx="700" cy="50" r="1.5" opacity="0.6"/>
+      <circle cx="1100" cy="70" r="1.1" opacity="0.5"/><circle cx="400" cy="820" r="1.3" opacity="0.4"/>
+    </g>
+    <circle cx="700" cy="450" r="350" fill="#0d1f3a" opacity="0.3"/>
+    <path d="M0,300 Q350,100 700,450 Q1050,800 1400,600" stroke="#0e2238" stroke-width="1" fill="none" opacity="0.4"/>
+  </svg>
+</div>
+
+<div class="hdr">
+  <div class="hdr-pill"><div class="hdr-pill-dot"></div>REFERENCIA TÉCNICA · QA WEB</div>
+  <h1>Aseguramiento de la Calidad<br>en Aplicaciones Web</h1>
+</div>
+
+<div class="map-outer">
+<div class="map-canvas" id="canvas">
+  <svg class="map-svg" id="mapSvg"></svg>
+
+  <!-- NUCLEUS: centro 1300,1100 -->
+  <div class="core" id="core" style="top:1100px;left:1300px;"></div>
+
+  <!-- ══════════ QA (arriba-centro) ══════════ -->
+  <!-- main: 480px arriba del núcleo -->
+  <div class="node node-main qa" id="qa-main" style="top:380px;left:1300px;">
+    <div class="n-photos">
+      <div class="n-photo"><img src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=140&h=80&fit=crop&q=80" alt=""/></div>
+      <div class="n-photo"><img src="https://images.unsplash.com/photo-1600880292089-90a7e086ee0c?w=140&h=80&fit=crop&q=80" alt=""/></div>
+    </div>
+    <div class="n-title">
+      <div class="n-ico" style="background:#0c2a3f"><svg viewBox="0 0 24 24" fill="none" stroke="var(--qa)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg></div>
+      <div><div class="n-label">QA · Aseguramiento</div><div class="n-sub">Procesos · Prevención</div></div>
+      <span class="n-badge" style="background:#38bdf815;color:var(--qa);border:1px solid #38bdf840;">PROCESO</span>
+    </div>
+    <div class="n-sec">Mejora continua</div>
+    <div class="chips"><span class="chip chip-hi">5 Porqués</span><span class="chip chip-hi">Ishikawa</span><span class="chip">PDCA</span><span class="chip">Kaizen</span><span class="chip">Retrospectivas</span></div>
+    <div class="divider"></div>
+    <div class="n-sec">Estándares</div>
+    <div class="chips"><span class="chip chip-hi">ISO 9001</span><span class="chip chip-hi">ISO 25010</span><span class="chip">CMMI</span><span class="chip">TDD</span><span class="chip">BDD</span><span class="chip chip-hi">DIR &lt; 2%</span></div>
+  </div>
+  <!-- subs QA: columna izquierda, 380px a la izquierda del main, separadas 320px -->
+  <div class="node node-sub qa" id="qa-s1" style="top:120px;left:840px;">
+    <div class="n-photo-single"><img src="https://images.unsplash.com/photo-1531498860502-7c67cf02f657?w=215&h=70&fit=crop&q=80" alt=""/></div>
+    <div class="n-title"><div class="n-ico" style="background:#0c2a3f"><svg viewBox="0 0 24 24" fill="none" stroke="var(--qa)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></div><div><div class="n-label">Mejora Continua</div><div class="n-sub">Ciclo PDCA</div></div></div>
+    <div class="chips"><span class="chip chip-hi">PDCA</span><span class="chip chip-hi">5 Porqués</span><span class="chip">Kaizen</span><span class="chip">Ishikawa</span><span class="chip">Retrospectivas</span><span class="chip">Root Cause</span><span class="chip">Lecciones Aprendidas</span><span class="chip">A3 Report</span></div>
+  </div>
+  <div class="node node-sub qa" id="qa-s2" style="top:120px;left:1300px;">
+    <div class="n-photo-single"><img src="https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?w=215&h=70&fit=crop&q=80" alt=""/></div>
+    <div class="n-title"><div class="n-ico" style="background:#0c2a3f"><svg viewBox="0 0 24 24" fill="none" stroke="var(--qa)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div><div><div class="n-label">Prevención</div><div class="n-sub">Antes del defecto</div></div></div>
+    <div class="chips"><span class="chip chip-hi">Code Review</span><span class="chip chip-hi">PR Checklist</span><span class="chip">DoD</span><span class="chip">DoR</span><span class="chip">Pair Programming</span><span class="chip">Static Analysis</span><span class="chip">Linting</span><span class="chip">IEEE 829</span></div>
+  </div>
+  <div class="node node-sub qa" id="qa-s3" style="top:120px;left:1760px;">
+    <div class="n-photo-single"><img src="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=215&h=70&fit=crop&q=80" alt=""/></div>
+    <div class="n-title"><div class="n-ico" style="background:#0c2a3f"><svg viewBox="0 0 24 24" fill="none" stroke="var(--qa)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg></div><div><div class="n-label">Estándares</div><div class="n-sub">Normas y marcos</div></div></div>
+    <div class="chips"><span class="chip chip-hi">ISO 9001</span><span class="chip chip-hi">ISO 25010</span><span class="chip">CMMI Nivel 3</span><span class="chip">ATDD</span><span class="chip">TDD</span><span class="chip">BDD</span><span class="chip">Auditorías</span><span class="chip">Sign-off</span></div>
+  </div>
+
+  <!-- ══════════ QC (derecha-arriba) ══════════ -->
+  <div class="node node-main qc" id="qc-main" style="top:600px;left:2000px;">
+    <div class="n-photos">
+      <div class="n-photo"><img src="https://images.unsplash.com/photo-1587620962725-abab7fe55159?w=140&h=80&fit=crop&q=80" alt=""/></div>
+      <div class="n-photo"><img src="https://images.unsplash.com/photo-1516116216624-53e697fedbea?w=140&h=80&fit=crop&q=80" alt=""/></div>
+    </div>
+    <div class="n-title">
+      <div class="n-ico" style="background:#1e1040"><svg viewBox="0 0 24 24" fill="none" stroke="var(--qc)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+      <div><div class="n-label">QC · Verificación</div><div class="n-sub">Detección · Testing</div></div>
+      <span class="n-badge" style="background:#a78bfa15;color:var(--qc);border:1px solid #a78bfa40;">TESTING</span>
+    </div>
+    <div class="n-sec">Tipos de prueba</div>
+    <div class="chips"><span class="chip chip-hi">SAST</span><span class="chip chip-hi">DAST</span><span class="chip">Unitarias</span><span class="chip">Integración</span><span class="chip">E2E</span></div>
+    <div class="divider"></div>
+    <div class="n-sec">Herramientas</div>
+    <div class="chips"><span class="chip chip-hi">Playwright</span><span class="chip chip-hi">Cypress</span><span class="chip">Jest</span><span class="chip">k6</span><span class="chip chip-hi">Cobertura ≥ 80%</span></div>
+  </div>
+  <!-- subs QC: columna derecha, separadas 360px vertical -->
+  <div class="node node-sub qc" id="qc-s1" style="top:240px;left:2340px;">
+    <div class="n-photo-single"><img src="https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?w=215&h=70&fit=crop&q=80" alt=""/></div>
+    <div class="n-title"><div class="n-ico" style="background:#1e1040"><svg viewBox="0 0 24 24" fill="none" stroke="var(--qc)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div><div><div class="n-label">Pruebas Funcionales</div><div class="n-sub">Unitarias · E2E</div></div></div>
+    <div class="chips"><span class="chip chip-hi">Jest / Vitest</span><span class="chip chip-hi">Playwright</span><span class="chip">Cypress</span><span class="chip">PyTest</span><span class="chip">Selenium</span><span class="chip">Pact</span><span class="chip">Postman</span><span class="chip">Multi-browser</span></div>
+  </div>
+  <div class="node node-sub qc" id="qc-s2" style="top:620px;left:2340px;">
+    <div class="n-photo-single"><img src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=215&h=70&fit=crop&q=80" alt=""/></div>
+    <div class="n-title"><div class="n-ico" style="background:#1e1040"><svg viewBox="0 0 24 24" fill="none" stroke="var(--qc)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><div><div class="n-label">Rendimiento</div><div class="n-sub">Performance Testing</div></div></div>
+    <div class="chips"><span class="chip chip-hi">k6</span><span class="chip chip-hi">JMeter</span><span class="chip">Core Web Vitals</span><span class="chip">LCP &lt; 2.5s</span><span class="chip">FID &lt; 100ms</span><span class="chip">CLS &lt; 0.1</span><span class="chip">Lighthouse</span><span class="chip chip-hi">p95 &lt; 300ms</span></div>
+  </div>
+  <div class="node node-sub qc" id="qc-s3" style="top:1000px;left:2340px;">
+    <div class="n-photo-single"><img src="https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=215&h=70&fit=crop&q=80" alt=""/></div>
+    <div class="n-title"><div class="n-ico" style="background:#1e1040"><svg viewBox="0 0 24 24" fill="none" stroke="var(--qc)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><div><div class="n-label">Seguridad</div><div class="n-sub">OWASP · Pentest</div></div></div>
+    <div class="chips"><span class="chip chip-hi">OWASP ZAP</span><span class="chip chip-hi">Snyk</span><span class="chip">Burp Suite</span><span class="chip">DAST</span><span class="chip">OWASP Top 10</span><span class="chip">XSS</span><span class="chip">SQLi</span><span class="chip">CSRF</span></div>
+  </div>
+
+  <!-- ══════════ COST (derecha-abajo) ══════════ -->
+  <div class="node node-main cost" id="cost-main" style="top:1600px;left:2000px;">
+    <div class="n-photos">
+      <div class="n-photo"><img src="https://images.unsplash.com/photo-1543286386-713bdd548da4?w=140&h=80&fit=crop&q=80" alt=""/></div>
+      <div class="n-photo"><img src="https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=140&h=80&fit=crop&q=80" alt=""/></div>
+    </div>
+    <div class="n-title">
+      <div class="n-ico" style="background:#2a1200"><svg viewBox="0 0 24 24" fill="none" stroke="var(--cost)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v12m-3-4.5c0 1.657 1.343 3 3 3s3-1.343 3-3-1.343-3-3-3-3-1.343-3-3 1.343-3 3 3 1.343 3 3"/></svg></div>
+      <div><div class="n-label">Costos de Calidad</div><div class="n-sub">Modelo CoQ</div></div>
+      <span class="n-badge" style="background:#fb923c15;color:var(--cost);border:1px solid #fb923c40;">CoQ</span>
+    </div>
+    <div class="n-sec">Categorías</div>
+    <div class="chips"><span class="chip chip-hi">Prevención</span><span class="chip chip-hi">Evaluación</span><span class="chip">Fallas Int.</span><span class="chip">Fallas Ext.</span></div>
+    <div class="divider"></div>
+    <div class="n-sec">Regla de costos</div>
+    <div class="chips"><span class="chip chip-hi">1x Requisitos</span><span class="chip chip-hi">10x QA</span><span class="chip chip-hi">100x Prod</span><span class="chip">BFR &lt; 5%</span></div>
+  </div>
+  <!-- subs COST: 360px vertical -->
+  <div class="node node-sub cost" id="cost-s1" style="top:1200px;left:2340px;">
+    <div class="n-photo-single"><img src="https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=215&h=70&fit=crop&q=80" alt=""/></div>
+    <div class="n-title"><div class="n-ico" style="background:#2a1200"><svg viewBox="0 0 24 24" fill="none" stroke="var(--cost)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div><div class="n-label">Prevención</div><div class="n-sub">Inversión temprana</div></div></div>
+    <div class="chips"><span class="chip chip-hi">Capacitación</span><span class="chip chip-hi">Herramientas CI</span><span class="chip">Code Reviews</span><span class="chip">Templates</span><span class="chip">Checklists</span><span class="chip">Mentoring</span><span class="chip">DoD / DoR</span><span class="chip">ISO 27001</span></div>
+  </div>
+  <div class="node node-sub cost" id="cost-s2" style="top:1600px;left:2340px;">
+    <div class="n-photo-single"><img src="https://images.unsplash.com/photo-1563986768609-322da13575f3?w=215&h=70&fit=crop&q=80" alt=""/></div>
+    <div class="n-title"><div class="n-ico" style="background:#2a1200"><svg viewBox="0 0 24 24" fill="none" stroke="var(--cost)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg></div><div><div class="n-label">Fallas</div><div class="n-sub">Internas y externas</div></div></div>
+    <div class="chips"><span class="chip chip-hi">Retrabajo</span><span class="chip chip-hi">Hotfixes</span><span class="chip">Deuda Técnica</span><span class="chip">Rollback</span><span class="chip">SLA Penalización</span><span class="chip">Reputación</span><span class="chip">Soporte Extra</span><span class="chip">Pérdida Usuarios</span></div>
+  </div>
+  <div class="node node-sub cost" id="cost-s3" style="top:2000px;left:2340px;">
+    <div class="n-photo-single"><img src="https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?w=215&h=70&fit=crop&q=80" alt=""/></div>
+    <div class="n-title"><div class="n-ico" style="background:#2a1200"><svg viewBox="0 0 24 24" fill="none" stroke="var(--cost)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><div><div class="n-label">ROI de Calidad</div><div class="n-sub">Retorno de inversión</div></div></div>
+    <div class="chips"><span class="chip chip-hi">1x → 10x → 100x</span><span class="chip chip-hi">ROI Positivo</span><span class="chip">MTTR Reducido</span><span class="chip">Releases Estables</span><span class="chip">NPS Mejorado</span><span class="chip">Churn Reducido</span><span class="chip">BFR &lt; 5%/sem</span></div>
+  </div>
+
+  <!-- ══════════ MET (izquierda-abajo) ══════════ -->
+  <div class="node node-main met" id="met-main" style="top:1600px;left:600px;">
+    <div class="n-photos">
+      <div class="n-photo"><img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=140&h=80&fit=crop&q=80" alt=""/></div>
+      <div class="n-photo"><img src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=140&h=80&fit=crop&q=80" alt=""/></div>
+    </div>
+    <div class="n-title">
+      <div class="n-ico" style="background:#052010"><svg viewBox="0 0 24 24" fill="none" stroke="var(--met)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125z"/></svg></div>
+      <div><div class="n-label">Métricas y KPIs</div><div class="n-sub">Proceso · Producto</div></div>
+      <span class="n-badge" style="background:#34d39915;color:var(--met);border:1px solid #34d39940;">KPI</span>
+    </div>
+    <div class="n-sec">Proceso</div>
+    <div class="chips"><span class="chip chip-hi">DIR</span><span class="chip chip-hi">EDR</span><span class="chip chip-hi">MTTR</span><span class="chip chip-hi">DORA</span><span class="chip">Escape Rate</span><span class="chip">Cycle Time</span></div>
+    <div class="divider"></div>
+    <div class="n-sec">Producto</div>
+    <div class="chips"><span class="chip chip-hi">Core Web Vitals</span><span class="chip">LCP &lt; 2.5s</span><span class="chip">Densidad Bugs</span><span class="chip chip-hi">EDR &lt; 0.5%</span></div>
+  </div>
+  <!-- subs MET: columna izquierda, 360px vertical -->
+  <div class="node node-sub met" id="met-s1" style="top:1200px;left:260px;">
+    <div class="n-photo-single"><img src="https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=215&h=70&fit=crop&q=80" alt=""/></div>
+    <div class="n-title"><div class="n-ico" style="background:#052010"><svg viewBox="0 0 24 24" fill="none" stroke="var(--met)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><div><div class="n-label">DORA Metrics</div><div class="n-sub">4 indicadores elite</div></div></div>
+    <div class="chips"><span class="chip chip-hi">Deploy Frequency</span><span class="chip chip-hi">Lead Time</span><span class="chip">MTTR</span><span class="chip">Change Fail Rate</span><span class="chip">Elite: diario</span><span class="chip">CFR &lt; 15%</span><span class="chip">MTTR &lt; 1hr</span></div>
+  </div>
+  <div class="node node-sub met" id="met-s2" style="top:1600px;left:260px;">
+    <div class="n-photo-single"><img src="https://images.unsplash.com/photo-1642543492481-44e81e3914a7?w=215&h=70&fit=crop&q=80" alt=""/></div>
+    <div class="n-title"><div class="n-ico" style="background:#052010"><svg viewBox="0 0 24 24" fill="none" stroke="var(--met)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div><div><div class="n-label">Dashboards</div><div class="n-sub">Visibilidad en tiempo real</div></div></div>
+    <div class="chips"><span class="chip chip-hi">Grafana</span><span class="chip chip-hi">Prometheus</span><span class="chip">SonarQube</span><span class="chip">Datadog</span><span class="chip">New Relic</span><span class="chip">Kibana</span><span class="chip">Allure</span><span class="chip">ReportPortal</span></div>
+  </div>
+  <div class="node node-sub met" id="met-s3" style="top:2000px;left:260px;">
+    <div class="n-photo-single"><img src="https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=215&h=70&fit=crop&q=80" alt=""/></div>
+    <div class="n-title"><div class="n-ico" style="background:#052010"><svg viewBox="0 0 24 24" fill="none" stroke="var(--met)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div><div><div class="n-label">Alertas</div><div class="n-sub">Notificación automática</div></div></div>
+    <div class="chips"><span class="chip chip-hi">Slack Alerts</span><span class="chip chip-hi">PagerDuty</span><span class="chip">Teams Webhook</span><span class="chip">Email Digest</span><span class="chip">On-call Rotation</span><span class="chip">SLA Threshold</span><span class="chip">Auto-escalation</span></div>
+  </div>
+
+  <!-- ══════════ GOV (izquierda-arriba) ══════════ -->
+  <div class="node node-main gov" id="gov-main" style="top:600px;left:600px;">
+    <div class="n-photos">
+      <div class="n-photo"><img src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=140&h=80&fit=crop&q=80" alt=""/></div>
+      <div class="n-photo"><img src="https://images.unsplash.com/photo-1507925921958-8a62f3d1a50d?w=140&h=80&fit=crop&q=80" alt=""/></div>
+    </div>
+    <div class="n-title">
+      <div class="n-ico" style="background:#2a0820"><svg viewBox="0 0 24 24" fill="none" stroke="var(--gov)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21"/></svg></div>
+      <div><div class="n-label">Gobernanza</div><div class="n-sub">Planificación · Entornos</div></div>
+      <span class="n-badge" style="background:#f472b615;color:var(--gov);border:1px solid #f472b640;">GOV</span>
+    </div>
+    <div class="n-sec">Planificación</div>
+    <div class="chips"><span class="chip chip-hi">Plan de Pruebas</span><span class="chip chip-hi">IEEE 829</span><span class="chip">Entry/Exit</span><span class="chip">Alcance</span><span class="chip">Estimación</span></div>
+    <div class="divider"></div>
+    <div class="n-sec">Shift Left</div>
+    <div class="chips"><span class="chip chip-hi">3 Amigos</span><span class="chip chip-hi">DevSecOps</span><span class="chip">GDPR</span><span class="chip">Feature Flags</span><span class="chip chip-hi">0 P1 abiertos</span></div>
+  </div>
+  <!-- subs GOV: columna izquierda, 360px vertical -->
+  <div class="node node-sub gov" id="gov-s1" style="top:240px;left:260px;">
+    <div class="n-photo-single"><img src="https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?w=215&h=70&fit=crop&q=80" alt=""/></div>
+    <div class="n-title"><div class="n-ico" style="background:#2a0820"><svg viewBox="0 0 24 24" fill="none" stroke="var(--gov)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div><div><div class="n-label">Plan de Pruebas</div><div class="n-sub">IEEE 829</div></div></div>
+    <div class="chips"><span class="chip chip-hi">Entry Criteria</span><span class="chip chip-hi">Exit Criteria</span><span class="chip">Alcance</span><span class="chip">Estimación</span><span class="chip">Test Charter</span><span class="chip">Risk Register</span><span class="chip">Recursos</span><span class="chip">Calendario</span></div>
+  </div>
+  <div class="node node-sub gov" id="gov-s2" style="top:620px;left:260px;">
+    <div class="n-photo-single"><img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=215&h=70&fit=crop&q=80" alt=""/></div>
+    <div class="n-title"><div class="n-ico" style="background:#2a0820"><svg viewBox="0 0 24 24" fill="none" stroke="var(--gov)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg></div><div><div class="n-label">Gestión de Riesgos</div><div class="n-sub">RBT · Matriz</div></div></div>
+    <div class="chips"><span class="chip chip-hi">RBT</span><span class="chip chip-hi">Matriz Riesgos</span><span class="chip">Impacto × Prob.</span><span class="chip">Risk Register</span><span class="chip">Mitigación</span><span class="chip">Contingencia</span><span class="chip">Alta / Media / Baja</span></div>
+  </div>
+  <div class="node node-sub gov" id="gov-s3" style="top:1000px;left:260px;">
+    <div class="n-photo-single"><img src="https://images.unsplash.com/photo-1667372393119-3d4c48d07fc9?w=215&h=70&fit=crop&q=80" alt=""/></div>
+    <div class="n-title"><div class="n-ico" style="background:#2a0820"><svg viewBox="0 0 24 24" fill="none" stroke="var(--gov)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div><div><div class="n-label">Entornos</div><div class="n-sub">Dev · QA · STG · Prod</div></div></div>
+    <div class="chips"><span class="chip chip-hi">Docker</span><span class="chip chip-hi">IaC</span><span class="chip">Dev / QA / STG / Prod</span><span class="chip">Feature Flags</span><span class="chip">Blue/Green</span><span class="chip">Canary Deploy</span><span class="chip">Terraform</span></div>
+  </div>
+
+</div>
+</div>
+
+<div class="banner-wrap">
+  <div class="banner">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/>
+    </svg>
+    <div class="banner-txt">
+      <strong>Regla 1-10-100:</strong>
+      detectar un defecto en requisitos cuesta 1x · en evaluación 10x · en producción 100x.
+      Mayor inversión en prevención → lanzamientos estables · menor MTTR · ROI positivo.
+    </div>
+  </div>
+</div>
+
+<div class="legend">
+  <div class="li"><div class="ld" style="background:var(--qa)"></div>QA Aseguramiento</div>
+  <div class="li"><div class="ld" style="background:var(--qc)"></div>QC Verificación</div>
+  <div class="li"><div class="ld" style="background:var(--cost)"></div>Costos de Calidad</div>
+  <div class="li"><div class="ld" style="background:var(--met)"></div>Métricas y KPIs</div>
+  <div class="li"><div class="ld" style="background:var(--gov)"></div>Gobernanza</div>
+</div>
+
+<script>
+(function(){
+  const COLORS = {
+    'qa-main':'#38bdf8','qa-s1':'#38bdf8','qa-s2':'#38bdf8','qa-s3':'#38bdf8',
+    'qc-main':'#a78bfa','qc-s1':'#a78bfa','qc-s2':'#a78bfa','qc-s3':'#a78bfa',
+    'cost-main':'#fb923c','cost-s1':'#fb923c','cost-s2':'#fb923c','cost-s3':'#fb923c',
+    'met-main':'#34d399','met-s1':'#34d399','met-s2':'#34d399','met-s3':'#34d399',
+    'gov-main':'#f472b6','gov-s1':'#f472b6','gov-s2':'#f472b6','gov-s3':'#f472b6',
+  };
+  const LINKS = [
+    ['core','qa-main'],['core','qc-main'],['core','cost-main'],['core','met-main'],['core','gov-main'],
+    ['qa-main','qa-s1'],['qa-main','qa-s2'],['qa-main','qa-s3'],
+    ['qc-main','qc-s1'],['qc-main','qc-s2'],['qc-main','qc-s3'],
+    ['cost-main','cost-s1'],['cost-main','cost-s2'],['cost-main','cost-s3'],
+    ['met-main','met-s1'],['met-main','met-s2'],['met-main','met-s3'],
+    ['gov-main','gov-s1'],['gov-main','gov-s2'],['gov-main','gov-s3'],
+  ];
+
+  function getR(el){ return el.getBoundingClientRect(); }
+  function canvasOffset(el){
+    const cr = document.getElementById('canvas').getBoundingClientRect();
+    const er = el.getBoundingClientRect();
+    return { x: er.left - cr.left + er.width/2, y: er.top - cr.top + er.height/2, w: er.width, h: er.height };
+  }
+  function edgePt(el, tx, ty){
+    const p = canvasOffset(el);
+    const dx = tx - p.x, dy = ty - p.y;
+    const hw = p.w/2, hh = p.h/2;
+    if(Math.abs(dy/(dx||.001)) < hh/hw) return { x: p.x+(dx>0?hw:-hw), y: p.y };
+    return { x: p.x, y: p.y+(dy>0?hh:-hh) };
+  }
+
+  function draw(){
+    const svg = document.getElementById('mapSvg');
+    svg.innerHTML = '';
+    LINKS.forEach(([aid,bid]) => {
+      const a = document.getElementById(aid), b = document.getElementById(bid);
+      if(!a||!b) return;
+      const color = COLORS[bid] || '#38bdf8';
+      const pa = canvasOffset(a), pb = canvasOffset(b);
+      const ep = edgePt(a, pb.x, pb.y), fp = edgePt(b, pa.x, pa.y);
+      const mx = (ep.x+fp.x)/2 + (pa.y-pb.y)*0.04;
+      const my = (ep.y+fp.y)/2 + (pb.x-pa.x)*0.04;
+      const p = document.createElementNS('http://www.w3.org/2000/svg','path');
+      p.setAttribute('d',`M${ep.x},${ep.y} Q${mx},${my} ${fp.x},${fp.y}`);
+      p.setAttribute('fill','none'); p.setAttribute('stroke',color);
+      p.setAttribute('stroke-width','1.5'); p.setAttribute('stroke-opacity','0.3');
+      p.setAttribute('stroke-dasharray','5 4');
+      svg.appendChild(p);
+      const dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      dot.setAttribute('cx',fp.x); dot.setAttribute('cy',fp.y);
+      dot.setAttribute('r','3'); dot.setAttribute('fill',color); dot.setAttribute('opacity','0.6');
+      svg.appendChild(dot);
+    });
+  }
+
+  // Draw the nucleus SVG content (it was removed earlier by accident)
+  function buildCore(){
+    const core = document.getElementById('core');
+    core.innerHTML = `
+      <div class="core-illus">
+        <svg viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="70" cy="70" r="65" stroke="#38bdf8" stroke-width="0.7" fill="none" opacity="0.4"/>
+          <circle cx="70" cy="70" r="45" stroke="#38bdf8" stroke-width="0.5" fill="none" opacity="0.25"/>
+          <line x1="70" y1="5" x2="70" y2="135" stroke="#38bdf8" stroke-width="0.3" opacity="0.15"/>
+          <line x1="5" y1="70" x2="135" y2="70" stroke="#38bdf8" stroke-width="0.3" opacity="0.15"/>
+          <path d="M70 18 L100 30 L100 58 Q100 82 70 96 Q40 82 40 58 L40 30 Z" stroke="#38bdf8" stroke-width="1.2" fill="#38bdf8" fill-opacity="0.07" opacity="0.8"/>
+          <polyline points="58,57 65,65 82,48" stroke="#38bdf8" stroke-width="2" fill="none" opacity="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="core-content">
+        <svg class="core-icon" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/>
+        </svg>
+        <div class="core-lbl">Calidad<br>Web</div>
+      </div>`;
+  }
+
+  window.addEventListener('load', () => { buildCore(); setTimeout(draw, 200); });
+  window.addEventListener('resize', () => { setTimeout(draw, 100); });
+})();
+</script>
+</body>
+</html>
